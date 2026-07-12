@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { todayJstDateString } from "@/lib/utils/date";
 
 const MEAL_TYPES = ["朝食", "昼食", "夕食", "間食"] as const;
 const MEAL_TIMINGS = ["朝", "昼", "夜", "深夜"] as const;
@@ -80,12 +81,65 @@ export const mealJsonSchema = z.preprocess(
 
 export type MealJson = z.infer<typeof mealJsonSchema>;
 
-export const weightLogSchema = z.object({
-  recorded_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "recorded_onはYYYY-MM-DD形式で指定してください"),
-  weight_kg: z.coerce.number().gt(0).max(500),
-  body_fat_percent: z
-    .preprocess((value) => (value === undefined || value === null || value === "" ? undefined : value), z.coerce.number().min(0).max(100).optional()),
-  note: z.string().max(500).optional().default(""),
-});
+const DASH_ONLY_RE = /^[-ー–—]+$/;
+
+/**
+ * 体組成計アプリは項目未計測時に "-" や "-%" を表示することが多いため、
+ * 空値・ダッシュ記号は「値なし」として扱う。
+ */
+function optionalNumberField(min: number, max: number) {
+  return z.preprocess((value) => {
+    if (value === undefined || value === null) return undefined;
+    if (typeof value === "string") {
+      const trimmed = value.trim().replace(/[%kg]+$/i, "");
+      if (trimmed === "" || DASH_ONLY_RE.test(trimmed)) return undefined;
+      return Number(trimmed);
+    }
+    return value;
+  }, z.number().min(min).max(max).optional());
+}
+
+/**
+ * 体組成計アプリのJSONは recorded_on が無く、date や datetime、
+ * あるいは日付情報自体が省略されることがあるため補完する。
+ */
+function coalesceRecordedOn(value: unknown): unknown {
+  if (typeof value !== "object" || value === null) return value;
+  const obj = value as Record<string, unknown>;
+
+  if (typeof obj.recorded_on === "string" && obj.recorded_on.trim()) return obj;
+
+  const date = obj.date;
+  if (typeof date === "string" && date.trim()) {
+    return { ...obj, recorded_on: date.trim().slice(0, 10) };
+  }
+
+  const datetime = obj.datetime;
+  if (typeof datetime === "string" && datetime.trim()) {
+    return { ...obj, recorded_on: datetime.trim().slice(0, 10) };
+  }
+
+  return { ...obj, recorded_on: todayJstDateString() };
+}
+
+export const weightLogSchema = z.preprocess(
+  coalesceRecordedOn,
+  z
+    .object({
+      recorded_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "recorded_onはYYYY-MM-DD形式で指定してください"),
+      weight_kg: z.coerce.number().gt(0).max(500),
+      body_fat_percent: optionalNumberField(0, 100),
+      muscle_mass_kg: optionalNumberField(0, 300),
+      bmi: optionalNumberField(0, 100),
+      visceral_fat_level: optionalNumberField(0, 60),
+      basal_metabolism_kcal: optionalNumberField(0, 10000),
+      body_age: optionalNumberField(0, 150),
+      bone_mass_kg: optionalNumberField(0, 50),
+      muscle_quality_score: optionalNumberField(0, 200),
+      body_water_percent: optionalNumberField(0, 100),
+      note: z.string().max(500).optional().default(""),
+    })
+    .passthrough(),
+);
 
 export type WeightLogInput = z.infer<typeof weightLogSchema>;

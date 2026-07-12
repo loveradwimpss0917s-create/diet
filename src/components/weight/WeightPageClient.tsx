@@ -1,19 +1,25 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
-import { Input, Label } from "@/components/ui/Input";
 import { WeightChart } from "@/components/charts/WeightChart";
+import { WeightManualForm } from "@/components/weight/WeightManualForm";
+import { WeightJsonImport } from "@/components/weight/WeightJsonImport";
 import { clsx } from "@/lib/utils/clsx";
-import { todayJstDateString } from "@/lib/utils/date";
 
 interface WeightLog {
   id: string;
   recorded_on: string;
   weight_kg: number;
   body_fat_percent: number | null;
+  muscle_mass_kg: number | null;
+  bmi: number | null;
+  visceral_fat_level: number | null;
+  basal_metabolism_kcal: number | null;
+  body_age: number | null;
+  bone_mass_kg: number | null;
+  muscle_quality_score: number | null;
+  body_water_percent: number | null;
   note: string | null;
 }
 
@@ -25,24 +31,28 @@ const PERIODS = [
 ] as const;
 
 type PeriodKey = (typeof PERIODS)[number]["key"];
+type InputMode = "manual" | "json";
+
+const LATEST_METRICS: { key: keyof WeightLog; label: string; unit: string }[] = [
+  { key: "body_fat_percent", label: "体脂肪率", unit: "%" },
+  { key: "muscle_mass_kg", label: "筋肉量", unit: "kg" },
+  { key: "bmi", label: "BMI", unit: "" },
+  { key: "visceral_fat_level", label: "内臓脂肪レベル", unit: "" },
+  { key: "basal_metabolism_kcal", label: "基礎代謝量", unit: "kcal" },
+  { key: "body_age", label: "体内年齢", unit: "才" },
+  { key: "bone_mass_kg", label: "推定骨量", unit: "kg" },
+  { key: "muscle_quality_score", label: "筋質点数", unit: "" },
+  { key: "body_water_percent", label: "体水分率", unit: "%" },
+];
 
 export function WeightPageClient({ targetWeightKg }: { targetWeightKg: number | null }) {
-  const router = useRouter();
+  const [mode, setMode] = useState<InputMode>("manual");
   const [period, setPeriod] = useState<PeriodKey>("30d");
   const [logs, setLogs] = useState<WeightLog[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [recordedOn, setRecordedOn] = useState(todayJstDateString());
-  const [weightKg, setWeightKg] = useState("");
-  const [bodyFatPercent, setBodyFatPercent] = useState("");
-  const [note, setNote] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const selected = PERIODS.find((p) => p.key === period)!;
+  const fetchLogs = useCallback((activePeriod: PeriodKey, signal?: { cancelled: boolean }) => {
+    const selected = PERIODS.find((p) => p.key === activePeriod)!;
     const params = new URLSearchParams();
     if (selected.days) {
       const from = new Date();
@@ -50,61 +60,33 @@ export function WeightPageClient({ targetWeightKg }: { targetWeightKg: number | 
       params.set("from", from.toISOString().slice(0, 10));
     }
 
-    fetch(`/api/weight-logs?${params.toString()}`)
+    return fetch(`/api/weight-logs?${params.toString()}`)
       .then((res) => res.json())
       .then((data) => {
-        if (!cancelled && data.success) setLogs(data.logs);
+        if (!signal?.cancelled && data.success) setLogs(data.logs);
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!signal?.cancelled) setLoading(false);
       });
+  }, []);
 
+  useEffect(() => {
+    const signal = { cancelled: false };
+    fetchLogs(period, signal);
     return () => {
-      cancelled = true;
+      signal.cancelled = true;
     };
-  }, [period]);
+  }, [period, fetchLogs]);
 
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    setError(null);
-    setSaving(true);
+  const refetch = useCallback(() => {
+    setLoading(true);
+    return fetchLogs(period);
+  }, [period, fetchLogs]);
 
-    const response = await fetch("/api/weight-logs", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        recorded_on: recordedOn,
-        weight_kg: Number(weightKg),
-        body_fat_percent: bodyFatPercent ? Number(bodyFatPercent) : undefined,
-        note,
-      }),
-    });
-    const data = await response.json();
-    setSaving(false);
-
-    if (!response.ok || !data.success) {
-      setError(data.error?.message ?? "登録に失敗しました");
-      return;
-    }
-
-    setWeightKg("");
-    setBodyFatPercent("");
-    setNote("");
-    setPeriod((p) => p);
-    router.refresh();
-    // 再取得
-    setLogs((prev) => {
-      const next = prev.filter((l) => l.recorded_on !== recordedOn);
-      next.push({
-        id: data.id,
-        recorded_on: recordedOn,
-        weight_kg: Number(weightKg),
-        body_fat_percent: bodyFatPercent ? Number(bodyFatPercent) : null,
-        note,
-      });
-      return next.sort((a, b) => (a.recorded_on < b.recorded_on ? -1 : 1));
-    });
-  }
+  const latest = logs.length > 0 ? logs[logs.length - 1] : null;
+  const latestMetrics = latest
+    ? LATEST_METRICS.filter(({ key }) => latest[key] !== null && latest[key] !== undefined)
+    : [];
 
   return (
     <div className="flex flex-col gap-6">
@@ -113,56 +95,51 @@ export function WeightPageClient({ targetWeightKg }: { targetWeightKg: number | 
         <p className="mt-1 text-sm text-zinc-500">同じ日付で再登録すると上書きされます</p>
       </div>
 
-      <Card>
-        <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
-          <div>
-            <Label htmlFor="recordedOn">日付</Label>
-            <Input
-              id="recordedOn"
-              type="date"
-              value={recordedOn}
-              onChange={(e) => setRecordedOn(e.target.value)}
-              required
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="weightKg">体重 (kg)</Label>
-              <Input
-                id="weightKg"
-                type="number"
-                step="0.1"
-                min={0}
-                required
-                value={weightKg}
-                onChange={(e) => setWeightKg(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="bodyFat">体脂肪率 (%)</Label>
-              <Input
-                id="bodyFat"
-                type="number"
-                step="0.1"
-                min={0}
-                max={100}
-                value={bodyFatPercent}
-                onChange={(e) => setBodyFatPercent(e.target.value)}
-              />
-            </div>
-          </div>
-          <div>
-            <Label htmlFor="note">メモ</Label>
-            <Input id="note" value={note} onChange={(e) => setNote(e.target.value)} />
-          </div>
+      <div className="flex gap-1.5">
+        <button
+          type="button"
+          onClick={() => setMode("manual")}
+          className={clsx(
+            "flex-1 rounded-full px-3 py-2 text-sm font-medium",
+            mode === "manual" ? "bg-emerald-600 text-white" : "bg-zinc-100 text-zinc-600",
+          )}
+        >
+          手動入力
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("json")}
+          className={clsx(
+            "flex-1 rounded-full px-3 py-2 text-sm font-medium",
+            mode === "json" ? "bg-emerald-600 text-white" : "bg-zinc-100 text-zinc-600",
+          )}
+        >
+          JSON貼り付け
+        </button>
+      </div>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+      {mode === "manual" ? (
+        <WeightManualForm onRegistered={refetch} />
+      ) : (
+        <WeightJsonImport onRegistered={refetch} />
+      )}
 
-          <Button type="submit" disabled={saving} className="w-full">
-            {saving ? "登録中..." : "記録する"}
-          </Button>
-        </form>
-      </Card>
+      {latest && latestMetrics.length > 0 && (
+        <Card>
+          <p className="mb-2 text-sm font-semibold text-zinc-700">最新の測定値（{latest.recorded_on}）</p>
+          <dl className="grid grid-cols-2 gap-y-2 text-sm">
+            {latestMetrics.map(({ key, label, unit }) => (
+              <div key={key} className="contents">
+                <dt className="text-zinc-500">{label}</dt>
+                <dd className="text-right font-medium text-zinc-900">
+                  {String(latest[key])}
+                  {unit}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </Card>
+      )}
 
       <Card>
         <div className="mb-3 flex gap-1.5">

@@ -313,6 +313,15 @@ create index ingredients_user_name_idx on public.ingredients (user_id, name);
 | `recorded_on` | `date` | `not null` | 記録日（JST基準の日付） |
 | `weight_kg` | `numeric(5,2)` | `not null`, `check (weight_kg > 0)` | |
 | `body_fat_percent` | `numeric(4,1)` | nullable, `check (between 0 and 100)` | 体脂肪率 |
+| `muscle_mass_kg` | `numeric(5,2)` | nullable | 筋肉量（体組成計JSON貼付用） |
+| `bmi` | `numeric(4,1)` | nullable | BMI |
+| `visceral_fat_level` | `numeric(4,1)` | nullable | 内臓脂肪レベル |
+| `basal_metabolism_kcal` | `integer` | nullable | 基礎代謝量 |
+| `body_age` | `integer` | nullable | 体内年齢 |
+| `bone_mass_kg` | `numeric(4,2)` | nullable | 推定骨量 |
+| `muscle_quality_score` | `numeric(5,1)` | nullable | 筋質点数 |
+| `body_water_percent` | `numeric(4,1)` | nullable | 体水分率 |
+| `raw_json` | `jsonb` | nullable | JSON貼付時の原文（手動入力時はnull） |
 | `note` | `text` | | メモ |
 | `created_at` | `timestamptz` | `default now()` | |
 

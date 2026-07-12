@@ -87,6 +87,15 @@ export interface Database {
           recorded_on: string;
           weight_kg: number;
           body_fat_percent: number | null;
+          muscle_mass_kg: number | null;
+          bmi: number | null;
+          visceral_fat_level: number | null;
+          basal_metabolism_kcal: number | null;
+          body_age: number | null;
+          bone_mass_kg: number | null;
+          muscle_quality_score: number | null;
+          body_water_percent: number | null;
+          raw_json: Record<string, unknown> | null;
           note: string | null;
           created_at: string;
         };
