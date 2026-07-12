@@ -194,7 +194,7 @@ diet/
 │   │       └── date.ts            # JST日付処理
 │   ├── types/
 │   │   └── database.ts            # Supabase生成型
-│   └── middleware.ts              # 認証ガード
+│   └── proxy.ts                   # 認証ガード（Next.js 16: middleware→proxy）
 ├── .env.example                   # 環境変数の雛形（値なし）
 ├── .gitignore
 ├── next.config.ts
@@ -604,7 +604,7 @@ export type MealJson = z.infer<typeof mealJsonSchema>;
 ## 9. 認証設計
 
 - `@supabase/ssr` を使用し、Cookieベースのセッション管理を行う。
-- `src/middleware.ts` で `(main)` グループと `/api/*` を保護。未認証のページアクセスは `/login` へリダイレクト、APIは `401` を返す。
+- `src/proxy.ts`（Next.js 16で`middleware.ts`から改称された規約）で `(main)` グループと `/api/*` を保護。未認証のページアクセスは `/login` へリダイレクト、APIは `401` を返す。
 - `auth.users` INSERT時のトリガーで `public.users` に行を自動作成（デフォルト目標値入り）。
 - メール確認: MVPでは**無効**（Supabase設定で確認メールをオフ）にし、フリクションを下げる。本番運用時に有効化を検討。
 
