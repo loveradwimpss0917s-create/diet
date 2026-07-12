@@ -25,34 +25,58 @@ function normalizeDatetime(value: unknown): unknown {
   return `${trimmed}+09:00`;
 }
 
-export const mealJsonSchema = z
-  .object({
-    datetime: z.preprocess(
-      normalizeDatetime,
-      z.string().datetime({ offset: true, message: "datetimeはISO8601形式で指定してください" }),
-    ),
-    meal_type: z.enum(MEAL_TYPES, {
-      message: `meal_typeは ${MEAL_TYPES.join(" / ")} のいずれかを指定してください`,
-    }),
-    meal_timing: z.enum(MEAL_TIMINGS).optional(),
-    menu_name: z.string().min(1, "menu_nameは必須です").max(200),
-    category: z.string().max(100).optional().default(""),
-    ingredients: z.array(z.string().min(1).max(100)).max(50).optional().default([]),
-    serving_size: z.string().max(50).optional().default(""),
-    calorie_kcal: numberField(0, 10000, 0),
-    protein_g: numberField(0, 1000, 0),
-    fat_g: numberField(0, 1000, 0),
-    carbohydrate_g: numberField(0, 1000, 0),
-    fiber_g: numberField(0, 500, 0),
-    salt_g: numberField(0, 100, 0),
-    confidence: z.preprocess((value) => {
-      if (value === undefined || value === null || value === "") return undefined;
-      return typeof value === "string" ? Number(value) : value;
-    }, z.number().int().min(0).max(100).optional()),
-    evaluation: z.string().max(1000).optional().default(""),
-    advice: z.string().max(2000).optional().default(""),
-  })
-  .passthrough();
+/**
+ * ChatGPTの出力形式は一定でなく、単一の datetime ではなく
+ * date("YYYY-MM-DD") + time("HH:MM") に分かれて返ってくることがあるため、
+ * datetime が無い場合はそこから合成する。
+ */
+function coalesceDatetimeFields(value: unknown): unknown {
+  if (typeof value !== "object" || value === null) return value;
+  const obj = value as Record<string, unknown>;
+
+  if (typeof obj.datetime === "string" && obj.datetime.trim()) return obj;
+
+  const date = obj.date;
+  if (typeof date !== "string" || !date.trim()) return obj;
+
+  const time = obj.time;
+  const timePart = typeof time === "string" && time.trim() ? time.trim() : "00:00";
+  const normalizedTime = /^\d{2}:\d{2}$/.test(timePart) ? `${timePart}:00` : timePart;
+
+  return { ...obj, datetime: `${date.trim()}T${normalizedTime}` };
+}
+
+export const mealJsonSchema = z.preprocess(
+  coalesceDatetimeFields,
+  z
+    .object({
+      datetime: z.preprocess(
+        normalizeDatetime,
+        z.string().datetime({ offset: true, message: "datetimeはISO8601形式で指定してください" }),
+      ),
+      meal_type: z.enum(MEAL_TYPES, {
+        message: `meal_typeは ${MEAL_TYPES.join(" / ")} のいずれかを指定してください`,
+      }),
+      meal_timing: z.enum(MEAL_TIMINGS).optional(),
+      menu_name: z.string().min(1, "menu_nameは必須です").max(200),
+      category: z.string().max(100).optional().default(""),
+      ingredients: z.array(z.string().min(1).max(100)).max(50).optional().default([]),
+      serving_size: z.string().max(50).optional().default(""),
+      calorie_kcal: numberField(0, 10000, 0),
+      protein_g: numberField(0, 1000, 0),
+      fat_g: numberField(0, 1000, 0),
+      carbohydrate_g: numberField(0, 1000, 0),
+      fiber_g: numberField(0, 500, 0),
+      salt_g: numberField(0, 100, 0),
+      confidence: z.preprocess((value) => {
+        if (value === undefined || value === null || value === "") return undefined;
+        return typeof value === "string" ? Number(value) : value;
+      }, z.number().int().min(0).max(100).optional()),
+      evaluation: z.string().max(1000).optional().default(""),
+      advice: z.string().max(2000).optional().default(""),
+    })
+    .passthrough(),
+);
 
 export type MealJson = z.infer<typeof mealJsonSchema>;
 
