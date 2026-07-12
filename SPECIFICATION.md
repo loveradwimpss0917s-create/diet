@@ -194,7 +194,7 @@ diet/
 │   │       └── date.ts            # JST日付処理
 │   ├── types/
 │   │   └── database.ts            # Supabase生成型
-│   └── proxy.ts                   # 認証ガード（Next.js 16: middleware→proxy）
+│   └── middleware.ts              # 認証ガード（Cloudflare/OpenNextがNode.jsランタイムのProxy未対応のため旧規約を使用）
 ├── .env.example                   # 環境変数の雛形（値なし）
 ├── .gitignore
 ├── next.config.ts
@@ -604,7 +604,8 @@ export type MealJson = z.infer<typeof mealJsonSchema>;
 ## 9. 認証設計
 
 - `@supabase/ssr` を使用し、Cookieベースのセッション管理を行う。
-- `src/proxy.ts`（Next.js 16で`middleware.ts`から改称された規約）で `(main)` グループと `/api/*` を保護。未認証のページアクセスは `/login` へリダイレクト、APIは `401` を返す。
+- `src/middleware.ts` で `(main)` グループと `/api/*` を保護。未認証のページアクセスは `/login` へリダイレクト、APIは `401` を返す。
+  - 注: Next.js 16では`middleware.ts`は`proxy.ts`に改称され非推奨警告が出るが、`proxy.ts`は常にNode.jsランタイムでコンパイルされ、Cloudflare（`@opennextjs/cloudflare`）が現状Node.jsランタイムのミドルウェアを未サポートのため、Edgeランタイムでコンパイルされる旧`middleware.ts`規約を意図的に使用している。
 - `auth.users` INSERT時のトリガーで `public.users` に行を自動作成（デフォルト目標値入り）。
 - メール確認: MVPでは**無効**（Supabase設定で確認メールをオフ）にし、フリクションを下げる。本番運用時に有効化を検討。
 
