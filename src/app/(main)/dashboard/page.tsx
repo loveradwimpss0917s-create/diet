@@ -4,30 +4,40 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { MealCard } from "@/components/meals/MealCard";
-import { todayJstDateString, nextDateString, formatJstDateLabel } from "@/lib/utils/date";
+import { DateNav } from "@/components/dashboard/DateNav";
+import { todayJstDateString, nextDateString } from "@/lib/utils/date";
 
-export default async function DashboardPage() {
+interface PageProps {
+  searchParams: Promise<{ date?: string }>;
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+export default async function DashboardPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const today = todayJstDateString();
+  const selectedDate = params.date && DATE_RE.test(params.date) && params.date <= today ? params.date : today;
+  const isToday = selectedDate === today;
+
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const today = todayJstDateString();
-
-  const [{ data: profile }, { data: summary }, { data: todayMeals }] = await Promise.all([
+  const [{ data: profile }, { data: summary }, { data: dayMeals }] = await Promise.all([
     supabase.from("users").select("*").eq("id", user!.id).single(),
     supabase
       .from("daily_summaries")
       .select("*")
       .eq("user_id", user!.id)
-      .eq("summary_date", today)
+      .eq("summary_date", selectedDate)
       .maybeSingle(),
     supabase
       .from("meals")
       .select("*")
       .eq("user_id", user!.id)
-      .gte("eaten_at", `${today}T00:00:00+09:00`)
-      .lt("eaten_at", `${nextDateString(today)}T00:00:00+09:00`)
+      .gte("eaten_at", `${selectedDate}T00:00:00+09:00`)
+      .lt("eaten_at", `${nextDateString(selectedDate)}T00:00:00+09:00`)
       .order("eaten_at", { ascending: false }),
   ]);
 
@@ -37,20 +47,23 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-bold text-zinc-900">{formatJstDateLabel(today)}</h1>
-        <p className="mt-1 text-sm text-zinc-500">今日の摂取量</p>
-      </div>
+      <DateNav date={selectedDate} />
 
       <Card className="flex flex-col gap-4">
         <div className="text-center">
-          <p className="text-4xl font-bold text-emerald-600">{Math.round(currentCalorie)}</p>
-          <p className="text-sm text-zinc-500">
+          <p className="text-4xl font-bold text-emerald-600 dark:text-emerald-400">
+            {Math.round(currentCalorie)}
+          </p>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
             / {targetCalorie} kcal
             {remaining >= 0 ? (
-              <span className="ml-2 text-emerald-600">残り {Math.round(remaining)}kcal</span>
+              <span className="ml-2 text-emerald-600 dark:text-emerald-400">
+                残り {Math.round(remaining)}kcal
+              </span>
             ) : (
-              <span className="ml-2 text-red-600">+{Math.round(-remaining)}kcal 超過</span>
+              <span className="ml-2 text-red-600 dark:text-red-400">
+                +{Math.round(-remaining)}kcal 超過
+              </span>
             )}
           </p>
         </div>
@@ -94,24 +107,32 @@ export default async function DashboardPage() {
 
       <section>
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-zinc-700">今日の食事</h2>
-          <Link href="/import" className="text-xs font-medium text-emerald-700">
-            ＋ 登録する
-          </Link>
+          <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+            {isToday ? "今日の食事" : `${selectedDate}の食事`}
+          </h2>
+          {isToday && (
+            <Link href="/import" className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
+              ＋ 登録する
+            </Link>
+          )}
         </div>
 
-        {todayMeals && todayMeals.length > 0 ? (
+        {dayMeals && dayMeals.length > 0 ? (
           <div className="flex flex-col gap-2">
-            {todayMeals.map((meal) => (
+            {dayMeals.map((meal) => (
               <MealCard key={meal.id} meal={meal} />
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-zinc-300 py-10 text-center">
-            <p className="text-sm text-zinc-500">今日はまだ食事記録がありません</p>
-            <Link href="/import">
-              <Button>＋ 食事を登録する</Button>
-            </Link>
+          <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-zinc-300 py-10 text-center dark:border-zinc-700">
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              {isToday ? "今日はまだ食事記録がありません" : "この日の食事記録はありません"}
+            </p>
+            {isToday && (
+              <Link href="/import">
+                <Button>＋ 食事を登録する</Button>
+              </Link>
+            )}
           </div>
         )}
       </section>

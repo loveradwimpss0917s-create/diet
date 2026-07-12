@@ -18,8 +18,8 @@ export function BodyCompositionPreviewCard({ log }: { log: WeightLogInput }) {
   return (
     <Card className="flex flex-col gap-3">
       <div>
-        <p className="text-xs text-zinc-500">記録日</p>
-        <p className="text-lg font-bold text-zinc-900">{log.recorded_on}</p>
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">記録日</p>
+        <p className="text-lg font-bold text-zinc-900 dark:text-zinc-100">{log.recorded_on}</p>
       </div>
 
       <dl className="grid grid-cols-2 gap-y-2 text-sm">
@@ -28,8 +28,8 @@ export function BodyCompositionPreviewCard({ log }: { log: WeightLogInput }) {
           if (value === undefined || value === null) return null;
           return (
             <div key={key} className="contents">
-              <dt className="text-zinc-500">{label}</dt>
-              <dd className="text-right font-medium text-zinc-900">
+              <dt className="text-zinc-500 dark:text-zinc-400">{label}</dt>
+              <dd className="text-right font-medium text-zinc-900 dark:text-zinc-100">
                 {String(value)}
                 {unit}
               </dd>
@@ -39,9 +39,9 @@ export function BodyCompositionPreviewCard({ log }: { log: WeightLogInput }) {
       </dl>
 
       {log.note && (
-        <div className="rounded-xl bg-zinc-50 p-3">
-          <p className="text-xs font-semibold text-zinc-500">メモ</p>
-          <p className="mt-0.5 text-sm text-zinc-800">{log.note}</p>
+        <div className="rounded-xl bg-zinc-50 p-3 dark:bg-zinc-800">
+          <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">メモ</p>
+          <p className="mt-0.5 text-sm text-zinc-800 dark:text-zinc-200">{log.note}</p>
         </div>
       )}
     </Card>

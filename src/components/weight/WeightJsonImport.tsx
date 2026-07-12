@@ -32,6 +32,7 @@ export function WeightJsonImport({ onRegistered }: { onRegistered: () => void })
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [targetsUpdated, setTargetsUpdated] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -101,6 +102,7 @@ export function WeightJsonImport({ onRegistered }: { onRegistered: () => void })
       }
 
       setSuccess(true);
+      setTargetsUpdated(Boolean(data.updatedTargets));
       setJsonText("");
       setLog(null);
       onRegistered();
@@ -113,19 +115,29 @@ export function WeightJsonImport({ onRegistered }: { onRegistered: () => void })
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm text-zinc-500">
+      <p className="text-sm text-zinc-500 dark:text-zinc-400">
         体組成計アプリの画面をスクリーンショットし、ChatGPTで解析したJSONを貼り付けると、体重以外の項目もまとめて記録できます。
       </p>
 
       {success && (
-        <Card className="border-emerald-200 bg-emerald-50">
-          <p className="text-sm font-medium text-emerald-800">登録が完了しました</p>
+        <Card className="border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/40">
+          <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
+            登録が完了しました
+          </p>
+          {targetsUpdated && (
+            <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400">
+              基礎代謝量を基に、1日の目標値（カロリー・PFC）を自動で再計算しました。設定画面から確認・調整できます。
+            </p>
+          )}
         </Card>
       )}
 
       <Card className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <label htmlFor="weight-json-input" className="text-sm font-medium text-zinc-700">
+          <label
+            htmlFor="weight-json-input"
+            className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+          >
             JSON入力欄
           </label>
           <Button type="button" variant="secondary" onClick={handlePaste}>
@@ -143,12 +155,14 @@ export function WeightJsonImport({ onRegistered }: { onRegistered: () => void })
           }}
         />
 
-        {parseError && <p className="text-sm text-red-600">{parseError}</p>}
+        {parseError && <p className="text-sm text-red-600 dark:text-red-400">{parseError}</p>}
 
         {errors.length > 0 && (
-          <div className="rounded-xl bg-red-50 p-3">
-            <p className="mb-1 text-sm font-semibold text-red-700">入力内容に誤りがあります</p>
-            <ul className="list-inside list-disc text-sm text-red-700">
+          <div className="rounded-xl bg-red-50 p-3 dark:bg-red-950/40">
+            <p className="mb-1 text-sm font-semibold text-red-700 dark:text-red-300">
+              入力内容に誤りがあります
+            </p>
+            <ul className="list-inside list-disc text-sm text-red-700 dark:text-red-300">
               {errors.map((error) => (
                 <li key={error.path}>
                   {error.path}: {error.message}
@@ -161,10 +175,10 @@ export function WeightJsonImport({ onRegistered }: { onRegistered: () => void })
 
       {log && (
         <>
-          <p className="text-sm font-medium text-zinc-700">プレビュー</p>
+          <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">プレビュー</p>
           <BodyCompositionPreviewCard log={log} />
 
-          {submitError && <p className="text-sm text-red-600">{submitError}</p>}
+          {submitError && <p className="text-sm text-red-600 dark:text-red-400">{submitError}</p>}
 
           <Button onClick={handleRegister} disabled={submitting} className="w-full">
             {submitting ? "登録中..." : "登録する"}

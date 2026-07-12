@@ -27,26 +27,41 @@ export function WeightChart({
 }) {
   if (data.length === 0) {
     return (
-      <div className="flex h-64 items-center justify-center text-sm text-zinc-400">
+      <div className="flex h-64 items-center justify-center text-sm text-zinc-400 dark:text-zinc-500">
         記録がありません
       </div>
     );
   }
 
+  const tickColor = "#71717a"; // zinc-500: 白背景・zinc-900背景どちらでも視認できる中間色
+  const gridColor = "#71717a33";
+
   return (
     <ResponsiveContainer width="100%" height={260}>
       <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
-        <XAxis dataKey="recorded_on" tick={{ fontSize: 11 }} minTickGap={24} />
-        <YAxis yAxisId="weight" tick={{ fontSize: 11 }} domain={["auto", "auto"]} />
+        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+        <XAxis dataKey="recorded_on" tick={{ fontSize: 11, fill: tickColor }} minTickGap={24} />
+        <YAxis
+          yAxisId="weight"
+          tick={{ fontSize: 11, fill: tickColor }}
+          domain={["auto", "auto"]}
+        />
         <YAxis
           yAxisId="fat"
           orientation="right"
-          tick={{ fontSize: 11 }}
+          tick={{ fontSize: 11, fill: tickColor }}
           domain={[0, 50]}
         />
-        <Tooltip />
-        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Tooltip
+          contentStyle={{
+            background: "var(--background)",
+            color: "var(--foreground)",
+            border: "1px solid #71717a4d",
+            borderRadius: 8,
+            fontSize: 12,
+          }}
+        />
+        <Legend wrapperStyle={{ fontSize: 12, color: tickColor }} />
         {targetWeightKg && (
           <ReferenceLine
             yAxisId="weight"

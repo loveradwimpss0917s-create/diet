@@ -469,6 +469,15 @@ create policy "own rows delete" on public.meals
 
 `ingredients` を含めて返す。他ユーザーの行は `404`。
 
+### 6.4.1 `PATCH /api/meals/[id]` — 編集
+
+ChatGPTの解析内容に誤りがある場合にユーザーが手動修正できるようにするための更新API。
+リクエストボディは `POST /api/meals` と同じ `mealJsonSchema` 形式（`datetime`必須）。
+`ingredients` は一度全削除してから登録し直す。**Response**: `{ "success": true, "id": "xxxx" }`
+
+`/meals/[id]/edit` に専用の編集フォーム画面があり、日時・区分・栄養素・食材・AI評価/アドバイスを
+個別フィールドで編集し、このAPIへ送信する。
+
 ### 6.5 `DELETE /api/meals/[id]` — 削除
 
 誤登録の取り消し用。`ingredients` はcascade削除、サマリーはトリガーで再計算。
@@ -536,6 +545,12 @@ export type MealJson = z.infer<typeof mealJsonSchema>;
   中央の「＋登録」は強調（円形FAB風）。
 - カラー: ニュートラル基調 + アクセント1色（emerald系）。P/F/Cは固定色（P=青系、F=黄系、C=赤系）で全画面統一。
 - ローディング・空状態・エラー状態を全画面で必ず実装する。
+- **ダークモード対応必須**: 全コンポーネントにTailwindの`dark:`バリアント（`prefers-color-scheme`ベース）で
+  配色を用意する。新規コンポーネントを追加する際は、light側の色クラスに対して必ず対応する`dark:`クラスを
+  同時に指定すること（`bg-white` → `dark:bg-zinc-900`、`text-zinc-900` → `dark:text-zinc-100` 等）。
+  Recharts等SVGを直接描画するコンポーネントはTailwindクラスが効かないため、`fill`/`stroke`に
+  ライト・ダーク両方で視認できる中間色（例: zinc-500）を明示指定するか、`currentColor`と
+  CSS変数（`var(--foreground)`等）を利用する。
 
 ### 8.2 JSON Import 画面（`/import`）— Phase 1の中核
 
@@ -572,7 +587,8 @@ export type MealJson = z.infer<typeof mealJsonSchema>;
 | 今日の食事 | 当日のミールカード一覧（時刻順）。0件なら「＋登録」への導線 |
 
 - プログレスバーは100%超過で色を警告色に変える。
-- データソース: `daily_summaries`（当日行）+ 当日の `meals`。
+- データソース: `daily_summaries`（選択日の行）+ 選択日の `meals`。
+- **日付ナビゲーション**: 画面上部に前日/翌日ボタンと日付タップでのカレンダー選択（`<input type="date">`）を備え、`?date=YYYY-MM-DD` クエリで過去日のサマリーも同じレイアウトで閲覧できる。未来日は選択不可。
 
 ### 8.4 Meal History（`/meals`）
 
@@ -587,21 +603,52 @@ export type MealJson = z.infer<typeof mealJsonSchema>;
 - 食材リスト（ingredients）
 - serving_size、confidence
 - AI評価・AIアドバイス（全文）
+- 編集ボタン（`/meals/[id]/edit` へ遷移。ChatGPTの解析ミスをユーザーが手動修正できる）
 - 削除ボタン（確認ダイアログ → `DELETE /api/meals/[id]`）
+
+### 8.5.1 Meal Edit（`/meals/[id]/edit`）
+
+日時（日付+時刻）・食事区分・食事タイミング・料理名・カテゴリ・分量・カロリー・PFC・食物繊維・
+塩分・食材（カンマ区切り）・AI評価・AIアドバイスを個別フィールドで編集できるフォーム。
+保存すると `PATCH /api/meals/[id]` へ送信し、Meal Detailへ戻る。
 
 ### 8.6 Weight Management（`/weight`）
 
-- 入力フォーム: 体重（必須・小数1〜2桁）/ 体脂肪率（任意）/ メモ（任意）/ 日付（デフォルト今日）
+- **入力モード切替タブ**: 「手動入力」「JSON貼り付け」
+  - 手動入力: 体重（必須・小数1〜2桁）/ 体脂肪率（任意）/ メモ（任意）/ 日付（デフォルト今日）
+  - JSON貼り付け: 体組成計アプリ（HealthPlanet等）のスクリーンショットをChatGPTで解析したJSONを
+    貼り付けると、体重・体脂肪率に加え筋肉量・BMI・内臓脂肪レベル・基礎代謝量・体内年齢・推定骨量・
+    筋質点数・体水分率もまとめて記録できる。JSON Import画面と同じ貼付→検証→プレビュー→登録のUX。
+    未計測項目（`-` 等の表記）はキーごと省略として扱う。
 - 同日再入力は上書き（UPSERT）である旨を表示
+- **最新の測定値カード**: 直近の記録に含まれる体組成項目を一覧表示
+- 基礎代謝量を含むJSONを登録すると、9.1節の計算式で1日の目標値（カロリー/PFC）を自動更新する
 - **グラフ（Recharts LineChart）**: 体重推移＋体脂肪率（第2軸）。期間切替タブ: `1週間 / 1ヶ月 / 3ヶ月 / 全期間`
 - 目標体重（users.target_weight_kg）があれば水平参照線を表示
 
 ### 8.7 Settings（`/settings`）
 
 - プロフィール: 表示名
-- 目標値編集: カロリー / P / F / C / 塩分 / 目標体重
+- 目標値編集: カロリー / P（タンパク質）/ F（脂質）/ C（炭水化物）/ 塩分 / 目標体重（各ラベルに日本語の正式名称を併記）
 - アカウント: ログアウト
 - （Phase 5用の枠だけ用意）APIキー管理セクション — 「準備中」表示
+
+### 8.9 1日の目標値の自動再計算
+
+体組成計JSON（8.6節）に基礎代謝量が含まれる場合、`POST /api/weight-logs` 内で以下の計算式により
+`users` テーブルの目標値（`target_calorie_kcal` / `target_protein_g` / `target_fat_g` /
+`target_carbohydrate_g`）を自動更新する（`target_salt_g` と `target_weight_kg` は対象外）。
+
+```
+活動係数 = 1.3（生活活動強度の目安固定値）
+TDEE = 基礎代謝量 × 活動係数
+カロリー目標 = round(TDEE × 0.85, 10kcal単位)   # 15%減の無理のない減量ペース
+タンパク質目標 = round(体重kg × 1.6)             # 減量中の筋量維持目安
+脂質目標 = round(カロリー目標 × 0.25 ÷ 9)
+炭水化物目標 = round((カロリー目標 - タンパク質目標×4 - 脂質目標×9) ÷ 4)
+```
+
+実装: `src/lib/utils/targets.ts` の `calculateDailyTargets()`。手動でSettingsから上書きすることも可能。
 
 ### 8.8 認証画面（`/login`, `/signup`）
 

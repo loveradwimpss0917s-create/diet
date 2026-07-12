@@ -91,8 +91,10 @@ export function WeightPageClient({ targetWeightKg }: { targetWeightKg: number | 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-bold text-zinc-900">体重管理</h1>
-        <p className="mt-1 text-sm text-zinc-500">同じ日付で再登録すると上書きされます</p>
+        <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">体重管理</h1>
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+          同じ日付で再登録すると上書きされます
+        </p>
       </div>
 
       <div className="flex gap-1.5">
@@ -101,7 +103,9 @@ export function WeightPageClient({ targetWeightKg }: { targetWeightKg: number | 
           onClick={() => setMode("manual")}
           className={clsx(
             "flex-1 rounded-full px-3 py-2 text-sm font-medium",
-            mode === "manual" ? "bg-emerald-600 text-white" : "bg-zinc-100 text-zinc-600",
+            mode === "manual"
+              ? "bg-emerald-600 text-white"
+              : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
           )}
         >
           手動入力
@@ -111,7 +115,9 @@ export function WeightPageClient({ targetWeightKg }: { targetWeightKg: number | 
           onClick={() => setMode("json")}
           className={clsx(
             "flex-1 rounded-full px-3 py-2 text-sm font-medium",
-            mode === "json" ? "bg-emerald-600 text-white" : "bg-zinc-100 text-zinc-600",
+            mode === "json"
+              ? "bg-emerald-600 text-white"
+              : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
           )}
         >
           JSON貼り付け
@@ -126,12 +132,14 @@ export function WeightPageClient({ targetWeightKg }: { targetWeightKg: number | 
 
       {latest && latestMetrics.length > 0 && (
         <Card>
-          <p className="mb-2 text-sm font-semibold text-zinc-700">最新の測定値（{latest.recorded_on}）</p>
+          <p className="mb-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+            最新の測定値（{latest.recorded_on}）
+          </p>
           <dl className="grid grid-cols-2 gap-y-2 text-sm">
             {latestMetrics.map(({ key, label, unit }) => (
               <div key={key} className="contents">
-                <dt className="text-zinc-500">{label}</dt>
-                <dd className="text-right font-medium text-zinc-900">
+                <dt className="text-zinc-500 dark:text-zinc-400">{label}</dt>
+                <dd className="text-right font-medium text-zinc-900 dark:text-zinc-100">
                   {String(latest[key])}
                   {unit}
                 </dd>
@@ -153,7 +161,9 @@ export function WeightPageClient({ targetWeightKg }: { targetWeightKg: number | 
               }}
               className={clsx(
                 "rounded-full px-3 py-1 text-xs font-medium",
-                period === p.key ? "bg-emerald-600 text-white" : "bg-zinc-100 text-zinc-600",
+                period === p.key
+                  ? "bg-emerald-600 text-white"
+                  : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
               )}
             >
               {p.label}
@@ -162,7 +172,7 @@ export function WeightPageClient({ targetWeightKg }: { targetWeightKg: number | 
         </div>
 
         {loading ? (
-          <div className="flex h-64 items-center justify-center text-sm text-zinc-400">
+          <div className="flex h-64 items-center justify-center text-sm text-zinc-400 dark:text-zinc-500">
             読み込み中...
           </div>
         ) : (

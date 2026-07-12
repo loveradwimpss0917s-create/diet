@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { weightLogSchema } from "@/lib/validation/meal";
 import { apiError, apiSuccess } from "@/lib/api/response";
+import { calculateDailyTargets } from "@/lib/utils/targets";
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -60,7 +61,14 @@ export async function POST(request: NextRequest) {
     return apiError("INTERNAL_ERROR", "体重記録の登録に失敗しました");
   }
 
-  return apiSuccess({ id: data.id }, 201);
+  // 基礎代謝量が含まれる記録の場合、1日の栄養目標値を再計算する。
+  let updatedTargets = null;
+  if (log.basal_metabolism_kcal !== undefined) {
+    updatedTargets = calculateDailyTargets(log.basal_metabolism_kcal, log.weight_kg);
+    await supabase.from("users").update(updatedTargets).eq("id", user.id);
+  }
+
+  return apiSuccess({ id: data.id, updatedTargets }, 201);
 }
 
 export async function GET(request: NextRequest) {

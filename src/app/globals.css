@@ -1,12 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-  /* Phase1ではダークテーマ未対応のため、端末のダークモード設定に関わらず
-     常にライトカラースキームで描画する（フォーム部品等のネイティブUIが
-     自動でダーク配色になり、明示指定した文字色と衝突して読めなくなるのを防ぐ）。 */
-  color-scheme: light;
+  --background: #fafafa;
+  --foreground: #18181b;
+  /* 全コンポーネントに dark: バリアントで明示的に配色しているため、
+     ネイティブUI（フォーム部品・スクロールバー等）もそれに合わせて
+     ライト/ダーク両方に追従させる。 */
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #09090b;
+    --foreground: #f4f4f5;
+  }
 }
 
 @theme inline {

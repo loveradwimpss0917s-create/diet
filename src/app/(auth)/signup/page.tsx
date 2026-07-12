@@ -47,8 +47,12 @@ export default function SignupPage() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm">
-        <h1 className="mb-1 text-center text-2xl font-bold text-zinc-900">AI食事記録</h1>
-        <p className="mb-8 text-center text-sm text-zinc-500">新規アカウントを作成します</p>
+        <h1 className="mb-1 text-center text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+          AI食事記録
+        </h1>
+        <p className="mb-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
+          新規アカウントを作成します
+        </p>
 
         <Card>
           <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
@@ -85,7 +89,7 @@ export default function SignupPage() {
               />
             </div>
 
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
             <Button type="submit" disabled={loading} className="mt-2 w-full">
               {loading ? "登録中..." : "登録する"}
@@ -93,9 +97,9 @@ export default function SignupPage() {
           </form>
         </Card>
 
-        <p className="mt-6 text-center text-sm text-zinc-500">
+        <p className="mt-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
           すでにアカウントをお持ちの方は{" "}
-          <Link href="/login" className="font-medium text-emerald-700">
+          <Link href="/login" className="font-medium text-emerald-700 dark:text-emerald-400">
             ログイン
           </Link>
         </p>

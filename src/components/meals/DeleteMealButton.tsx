@@ -30,7 +30,7 @@ export function DeleteMealButton({ mealId }: { mealId: string }) {
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-center text-sm text-zinc-600">本当に削除しますか？</p>
+      <p className="text-center text-sm text-zinc-600 dark:text-zinc-400">本当に削除しますか？</p>
       <div className="flex gap-2">
         <Button variant="secondary" className="flex-1" onClick={() => setConfirming(false)}>
           キャンセル

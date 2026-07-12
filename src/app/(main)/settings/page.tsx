@@ -13,8 +13,8 @@ export default async function SettingsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-bold text-zinc-900">設定</h1>
-        <p className="mt-1 text-sm text-zinc-500">{user?.email}</p>
+        <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">設定</h1>
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{user?.email}</p>
       </div>
 
       {profile && <SettingsForm profile={profile} />}

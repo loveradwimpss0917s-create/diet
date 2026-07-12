@@ -59,7 +59,7 @@ export function SettingsForm({ profile }: { profile: Profile }) {
   return (
     <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
       <Card className="flex flex-col gap-3">
-        <p className="text-sm font-semibold text-zinc-700">プロフィール</p>
+        <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">プロフィール</p>
         <div>
           <Label htmlFor="displayName">表示名</Label>
           <Input id="displayName" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
@@ -67,7 +67,7 @@ export function SettingsForm({ profile }: { profile: Profile }) {
       </Card>
 
       <Card className="flex flex-col gap-3">
-        <p className="text-sm font-semibold text-zinc-700">1日の目標値</p>
+        <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">1日の目標値</p>
         <div>
           <Label htmlFor="targetCalorie">カロリー (kcal)</Label>
           <Input
@@ -78,9 +78,12 @@ export function SettingsForm({ profile }: { profile: Profile }) {
             onChange={(e) => setTargetCalorie(e.target.value)}
           />
         </div>
+        <p className="-mb-1 text-xs text-zinc-400 dark:text-zinc-500">
+          P：タンパク質 / F：脂質 / C：炭水化物
+        </p>
         <div className="grid grid-cols-3 gap-2">
           <div>
-            <Label htmlFor="targetProtein">P (g)</Label>
+            <Label htmlFor="targetProtein">P・タンパク質 (g)</Label>
             <Input
               id="targetProtein"
               type="number"
@@ -90,7 +93,7 @@ export function SettingsForm({ profile }: { profile: Profile }) {
             />
           </div>
           <div>
-            <Label htmlFor="targetFat">F (g)</Label>
+            <Label htmlFor="targetFat">F・脂質 (g)</Label>
             <Input
               id="targetFat"
               type="number"
@@ -100,7 +103,7 @@ export function SettingsForm({ profile }: { profile: Profile }) {
             />
           </div>
           <div>
-            <Label htmlFor="targetCarb">C (g)</Label>
+            <Label htmlFor="targetCarb">C・炭水化物 (g)</Label>
             <Input
               id="targetCarb"
               type="number"
@@ -134,8 +137,8 @@ export function SettingsForm({ profile }: { profile: Profile }) {
         </div>
       </Card>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {saved && <p className="text-sm text-emerald-600">保存しました</p>}
+      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {saved && <p className="text-sm text-emerald-600 dark:text-emerald-400">保存しました</p>}
 
       <Button type="submit" disabled={saving} className="w-full">
         {saving ? "保存中..." : "保存する"}

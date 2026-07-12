@@ -25,13 +25,13 @@ export default async function MealHistoryPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-bold text-zinc-900">食事履歴</h1>
-        <p className="mt-1 text-sm text-zinc-500">日付別の食事記録</p>
+        <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">食事履歴</h1>
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">日付別の食事記録</p>
       </div>
 
       {groups.length === 0 && (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-zinc-300 py-16 text-center">
-          <p className="text-sm text-zinc-500">まだ食事記録がありません</p>
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-zinc-300 py-16 text-center dark:border-zinc-700">
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">まだ食事記録がありません</p>
           <Link href="/import">
             <Button>＋ 最初の食事を登録する</Button>
           </Link>
@@ -41,8 +41,10 @@ export default async function MealHistoryPage() {
       {groups.map(({ date, meals: dayMeals, totalCalorie }) => (
         <section key={date}>
           <div className="mb-2 flex items-baseline justify-between">
-            <h2 className="text-sm font-semibold text-zinc-700">{formatJstDateLabel(date)}</h2>
-            <span className="text-xs text-zinc-500">合計 {totalCalorie}kcal</span>
+            <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+              {formatJstDateLabel(date)}
+            </h2>
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">合計 {totalCalorie}kcal</span>
           </div>
           <div className="flex flex-col gap-2">
             {dayMeals.map((meal) => (
