@@ -65,7 +65,9 @@ http://localhost:3000 を開くとログイン画面が表示されます。
 4. Variables and Secrets に以下を設定:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-5. 保存すると初回ビルドが走り、`https://ai-meal-tracker.<account>.workers.dev` で公開されます
+5. 保存すると初回ビルドが走り、`https://diet.<account>.workers.dev` で公開されます
+
+> Cloudflare側のWorker名（Settings > General の Worker名）は、`wrangler.jsonc` の `name` フィールドと完全に一致している必要があります（現在は `diet`）。一致しないとビルドが失敗します。
 
 mainへのmergeで自動ビルド・デプロイが実行され、PRではPreview URLが自動発行されます。
 

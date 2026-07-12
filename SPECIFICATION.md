@@ -749,7 +749,7 @@ PRブランチには **Preview URL** が自動発行される（Workers Builds�
 ```jsonc
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "ai-meal-tracker",
+  "name": "diet",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-07-01",
   "compatibility_flags": ["nodejs_compat"],
@@ -789,9 +789,10 @@ export default defineCloudflareConfig();
 4. **環境変数**（Variables and Secrets）に以下を設定:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-5. 保存 → 初回ビルドが走る → `https://ai-meal-tracker.<account>.workers.dev` で稼働確認
+5. 保存 → 初回ビルドが走る → `https://diet.<account>.workers.dev` で稼働確認
 
 > Supabase の anon key は RLS 前提の公開可能キーだが、慣習として Secret 扱いにしてよい。
+> Cloudflare側のWorker名は `wrangler.jsonc` の `name`（`diet`）と完全一致させること。不一致だとビルドが失敗する。
 
 ### 12.4 デプロイ検証チェックリスト
 
