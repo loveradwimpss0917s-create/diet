@@ -99,6 +99,53 @@ function optionalNumberField(min: number, max: number) {
   }, z.number().min(min).max(max).optional());
 }
 
+const WEIGHT_LOG_CANONICAL_KEYS = [
+  "recorded_on",
+  "weight_kg",
+  "body_fat_percent",
+  "muscle_mass_kg",
+  "bmi",
+  "visceral_fat_level",
+  "basal_metabolism_kcal",
+  "body_age",
+  "bone_mass_kg",
+  "muscle_quality_score",
+  "body_water_percent",
+  "note",
+  "date",
+  "datetime",
+] as const;
+
+function normalizeKeyForMatching(key: string): string {
+  return key.toLowerCase().replace(/[_\s-]/g, "");
+}
+
+/**
+ * ChatGPTはキー名のアンダースコアを省略することがある
+ * （例: "body_fat_percent" → "bodyfatpercent"）。
+ * アンダースコアや大小文字の違いを無視して正規キー名に補完する。
+ */
+function remapWeightLogKeys(value: unknown): unknown {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return value;
+  const obj = value as Record<string, unknown>;
+  const result: Record<string, unknown> = { ...obj };
+
+  for (const [key, val] of Object.entries(obj)) {
+    if (WEIGHT_LOG_CANONICAL_KEYS.includes(key as (typeof WEIGHT_LOG_CANONICAL_KEYS)[number])) {
+      continue;
+    }
+    const normalized = normalizeKeyForMatching(key);
+    const canonical = WEIGHT_LOG_CANONICAL_KEYS.find(
+      (candidate) => normalizeKeyForMatching(candidate) === normalized,
+    );
+    if (canonical && !(canonical in result)) {
+      result[canonical] = val;
+    }
+  }
+
+  return result;
+}
+
 /**
  * 体組成計アプリのJSONは recorded_on が無く、date や datetime、
  * あるいは日付情報自体が省略されることがあるため補完する。
@@ -122,8 +169,12 @@ function coalesceRecordedOn(value: unknown): unknown {
   return { ...obj, recorded_on: todayJstDateString() };
 }
 
+function preprocessWeightLog(value: unknown): unknown {
+  return coalesceRecordedOn(remapWeightLogKeys(value));
+}
+
 export const weightLogSchema = z.preprocess(
-  coalesceRecordedOn,
+  preprocessWeightLog,
   z
     .object({
       recorded_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "recorded_onはYYYY-MM-DD形式で指定してください"),
