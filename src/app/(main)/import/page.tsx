@@ -12,6 +12,8 @@ const PLACEHOLDER = `{
   "datetime": "2026-07-12T21:56:00+09:00",
   "meal_type": "間食",
   "menu_name": "雪塩ちんすこう ミルク風味",
+  "brand": "",
+  "recognition_type": "推定",
   "calorie_kcal": 120,
   "protein_g": 1,
   "fat_g": 6,

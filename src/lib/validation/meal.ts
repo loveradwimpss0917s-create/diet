@@ -3,6 +3,22 @@ import { todayJstDateString } from "@/lib/utils/date";
 
 const MEAL_TYPES = ["朝食", "昼食", "夕食", "間食"] as const;
 const MEAL_TIMINGS = ["朝", "昼", "夜", "深夜"] as const;
+const RECOGNITION_TYPES = ["商品", "一般料理", "推定"] as const;
+
+/**
+ * recognition_type はChatGPTが英語表記や未知の値で返すことがあるため、
+ * 既知の表現から正規値へマッピングし、判別不能な場合はデフォルト（推定）に委ねる。
+ */
+function normalizeRecognitionType(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  if ((RECOGNITION_TYPES as readonly string[]).includes(trimmed)) return trimmed;
+  const lower = trimmed.toLowerCase();
+  if (["product", "branded", "brand", "packaged"].includes(lower)) return "商品";
+  if (["generic", "dish", "home-cooked", "homecooked", "general"].includes(lower)) return "一般料理";
+  if (["estimate", "estimated", "guess", "unknown"].includes(lower)) return "推定";
+  return undefined;
+}
 
 /**
  * ChatGPT出力は数値が文字列で来ることがあるため、空値以外は数値へ変換してから検証する。
@@ -60,6 +76,11 @@ export const mealJsonSchema = z.preprocess(
       }),
       meal_timing: z.enum(MEAL_TIMINGS).optional(),
       menu_name: z.string().min(1, "menu_nameは必須です").max(200),
+      brand: z.string().max(100).optional().default(""),
+      recognition_type: z.preprocess(
+        normalizeRecognitionType,
+        z.enum(RECOGNITION_TYPES).optional().default("推定"),
+      ),
       category: z.string().max(100).optional().default(""),
       ingredients: z.array(z.string().min(1).max(100)).max(50).optional().default([]),
       serving_size: z.string().max(50).optional().default(""),

@@ -258,7 +258,9 @@ public.ingredients
 | `eaten_at` | `timestamptz` | `not null` | JSONの `datetime`。食事日時 |
 | `meal_type` | `text` | `not null`, `check (meal_type in ('朝食','昼食','夕食','間食'))` | |
 | `meal_timing` | `text` | `check (meal_timing in ('朝','昼','夜','深夜'))`, nullable | |
-| `menu_name` | `text` | `not null` | 料理名 |
+| `menu_name` | `text` | `not null` | 料理名（商品として認識できた場合は商品名） |
+| `brand` | `text` | nullable | ブランド・メーカー・販売店名（例: 無印良品、ローソン） |
+| `recognition_type` | `text` | `not null default '推定'`, `check (in ('商品','一般料理','推定'))` | AIがどう認識したか。商品=ブランド・商品名まで特定、一般料理=具体的な料理として認識、推定=確信度が低い一般化 |
 | `category` | `text` | | 例: 和菓子 |
 | `serving_size` | `text` | | 例: 1個 |
 | `calorie_kcal` | `numeric(7,1)` | `not null`, `check (calorie_kcal >= 0)` | |
@@ -509,6 +511,8 @@ export const mealJsonSchema = z.object({
   meal_type: z.enum(["朝食", "昼食", "夕食", "間食"]),
   meal_timing: z.enum(["朝", "昼", "夜", "深夜"]).optional(),
   menu_name: z.string().min(1).max(200),
+  brand: z.string().max(100).optional().default(""),          // ブランド・商品名（例: 無印良品）
+  recognition_type: z.enum(["商品", "一般料理", "推定"]).optional().default("推定"),
   category: z.string().max(100).optional().default(""),
   ingredients: z.array(z.string().min(1).max(100)).max(50).default([]),
   serving_size: z.string().max(50).optional().default(""),
@@ -531,7 +535,19 @@ export type MealJson = z.infer<typeof mealJsonSchema>;
 - 数値フィールドが文字列 `"120"` で来た場合は `z.coerce.number()` 相当で受容する。
 - 未知のキーは**エラーにせず無視**する（`strict()` を使わない）。ただし `raw_json` には原文をそのまま保存。
 - `datetime` にオフセットが無い場合はJST（`+09:00`）とみなして補完する前処理を入れる。
+- `datetime` が無く `date`+`time` に分かれて返ってきた場合は合成する（実例で確認済みの揺れ）。
 - `meal_type` の揺れ（例: 「朝ごはん」）はPhase 1では**エラーとして返し**、Import画面でユーザーに修正を促す。マッピング辞書での自動補正はPhase 5で検討。
+- `brand` / `recognition_type` は**後方互換のため任意項目**。未指定のJSON（旧形式）は `recognition_type: "推定"` として扱われ、既存の解析フローを壊さない。
+- `recognition_type` が英語表記（`"product"` 等）や未知の値で来た場合は既知の表現からマッピングし、判別不能な場合はデフォルト（`"推定"`）にフォールバックする。
+
+### 7.1 商品名・ブランド認識の背景
+
+写真のみからの解析では、実際に食べた市販商品（例: 「無印良品 素材を生かしたキーマカレー」）が
+「チーズハンバーグ」「カレーソース」のような一般化した料理名に丸められ、栄養価も実際の商品パッケージ
+記載値より低く推定されるケースが確認されている。これを緩和するため、ChatGPTへのプロンプトで
+「パッケージ・ブランドロゴ・店舗の特定食品が識別できる場合は商品名とブランドを明記し、
+recognition_typeを商品とすること」を明示的に指示する（17.8節のプロンプト参照）。
+`raw_json` には解析結果全文を保存しているため、認識精度の改善や再解析は後からでも可能。
 
 ---
 
@@ -565,7 +581,8 @@ export type MealJson = z.infer<typeof mealJsonSchema>;
 
 **プレビューカードの表示項目**（仕様指定）:
 
-- 料理名（menu_name）
+- 料理名（menu_name）＋ **認識タイプバッジ**（商品=青 / 一般料理=グレー / 推定=amber）
+- ブランド・商品名（brand、値がある場合のみ表示）
 - カテゴリ（category）
 - 食事日時・食事区分
 - カロリー（大きく表示）
@@ -573,6 +590,11 @@ export type MealJson = z.infer<typeof mealJsonSchema>;
 - AI評価（evaluation）
 - AIアドバイス（advice）
 - 信頼度（confidence をバッジ表示。80未満は注意色）
+
+料理名・ブランド・認識タイプ・栄養素は、Meal History一覧・Meal Detail・編集フォーム
+（`RecognitionTypeBadge` コンポーネントで統一表示）でも同様に扱う。編集フォームでは
+`brand` を任意テキスト、`recognition_type` をセレクトボックスとしてユーザーが修正できる
+（8.5.1節）。
 
 ### 8.3 Dashboard（`/dashboard`）
 
@@ -992,6 +1014,34 @@ Phase 1では実装しないが、**後から入れやすい構造にしてお�
 
 - Supabase Storage にバケット `meal-photos` を作成し、`meals.photo_url` に格納。ショートカットからmultipartまたは署名付きURLでアップロード。
 
+### 16.4 市販商品の栄養成分データベース照合
+
+現状（Phase 1〜）は `brand` / `recognition_type` をJSONに保持するだけで、栄養価はAIの推定値を
+そのまま使用している。将来的に以下の設計で、商品として認識できた場合は正確な商品データを優先し、
+認識できない場合のみAI推定値にフォールバックする仕組みを追加できるようにしておく。
+
+**想定テーブル**（新規マイグレーションで追加）:
+
+| テーブル | 用途 |
+|---|---|
+| `products` | 商品マスタ。`brand` + `product_name`（または将来的にJANコード）をキーに、公式の栄養成分表示値（カロリー・PFC・食物繊維・塩分）を保持 |
+
+**照合フロー（`POST /api/meals` 拡張案）**:
+
+1. `recognition_type === "商品"` かつ `brand` が非空の場合、`products` テーブルを
+   `brand` + `menu_name`（正規化した文字列マッチ、将来的には表記ゆれ吸収のため類似度検索や
+   JANコード照合に拡張）で検索する。
+2. 一致する商品データが見つかった場合、その商品の栄養成分値でAI推定値を**上書き**し、
+   `meals` テーブルに商品マッチ済みであることを示すフラグ（例: `product_id` カラムを追加し
+   紐付け）を記録する。
+3. 一致しない場合は、これまで通りAIが返した推定栄養価をそのまま保存する（現状の挙動）。
+4. `raw_json` にはAIの生の解析結果を必ず保持し続けるため、後から照合ロジックを改善して
+   再計算することも可能。
+
+**データソース候補**: 文部科学省 食品成分データベース（一般料理向け）、メーカー公式栄養成分表示
+（商品向け、手動投入または将来的なAPI連携）。Phase 1〜4では実装しないが、`recognition_type`と
+`brand`をJSONスキーマに組み込んだことで、この拡張に必要なデータが既に蓄積される設計になっている。
+
 ---
 
 ## 17. Sonnet向け実装指示書
@@ -1087,6 +1137,75 @@ git push -u origin chore/project-setup
 3. 「＋登録」→ 貼付ボタン → プレビューで料理名・カロリー・PFC・AI評価を確認 → 登録
 4. Dashboardに今日の摂取量とプログレスバーが即時反映
 5. 履歴からいつでも過去の食事とAIアドバイスを振り返れる
+
+### 17.8 食事写真解析用 ChatGPTプロンプト（参考）
+
+iOSショートカットからChatGPTへ渡すプロンプトの例。写真のみからの解析だと市販商品が一般化した
+料理名に丸められがちなため、商品・ブランドの識別を明示的に指示し、`brand` / `recognition_type`
+を含む7.1節のJSONスキーマに沿って出力させる。
+
+```
+あなたは食事写真を解析し、栄養データを抽出するアシスタントです。
+
+添付された食事写真を解析し、以下のJSON形式で出力してください。
+
+出力ルール:
+- JSON以外の文章・説明・コードブロックの```は一切出力しないこと。JSONオブジェクトのみを出力する。
+- パッケージの文字・ロゴ・容器の形状・店舗の特徴的な盛り付けなどから、具体的な商品名や
+  ブランド（メーカー・コンビニ・チェーン店名）が識別できる場合は、menu_nameに商品の正式名称を、
+  brandにブランド・販売元名を記載し、recognition_typeを"商品"にする。
+- 商品としては特定できないが、具体的な料理（例: 家庭のカレーライス、鶏の唐揚げ）として
+  認識できる場合は、recognition_typeを"一般料理"にし、brandは空文字にする。
+- 料理の特定に自信が持てない場合は、一般化した推定名を付け、recognition_typeを"推定"にする。
+- 商品として認識できた場合は、可能な範囲でその商品の公式栄養成分表示に近い値を推定すること
+  （一般的な同種料理の平均値ではなく、識別した商品自体の値に寄せる）。
+- confidenceには0〜100の整数で認識の確信度を入れる。
+
+{
+  "datetime": "YYYY-MM-DDTHH:MM:SS+09:00",
+  "meal_type": "朝食 / 昼食 / 夕食 / 間食",
+  "meal_timing": "朝 / 昼 / 夜 / 深夜",
+  "menu_name": "商品名または料理名",
+  "brand": "ブランド・販売元（無ければ空文字）",
+  "recognition_type": "商品 / 一般料理 / 推定",
+  "category": "料理のジャンル",
+  "ingredients": ["食材1", "食材2"],
+  "serving_size": "1人前 など",
+  "calorie_kcal": 数値,
+  "protein_g": 数値,
+  "fat_g": 数値,
+  "carbohydrate_g": 数値,
+  "fiber_g": 数値,
+  "salt_g": 数値,
+  "confidence": 0〜100の整数,
+  "evaluation": "栄養面の簡潔な評価",
+  "advice": "改善のための一言アドバイス"
+}
+```
+
+出力例（商品として認識できたケース）:
+
+```json
+{
+  "datetime": "2026-07-12T21:56:00+09:00",
+  "meal_type": "夕食",
+  "menu_name": "素材を生かしたキーマカレー",
+  "brand": "無印良品",
+  "recognition_type": "商品",
+  "category": "カレー",
+  "ingredients": ["牛肉", "玉ねぎ", "スパイス"],
+  "serving_size": "1袋(180g)",
+  "calorie_kcal": 202,
+  "protein_g": 9.7,
+  "fat_g": 10.8,
+  "carbohydrate_g": 16.9,
+  "fiber_g": 2.1,
+  "salt_g": 2.5,
+  "confidence": 90,
+  "evaluation": "スパイスが効いたカレーでタンパク質も摂れています",
+  "advice": "野菜を追加するとさらにバランスが良くなります"
+}
+```
 
 ---
 

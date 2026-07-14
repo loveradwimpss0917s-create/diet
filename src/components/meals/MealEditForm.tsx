@@ -12,6 +12,7 @@ type MealRow = Database["public"]["Tables"]["meals"]["Row"];
 
 const MEAL_TYPES = ["朝食", "昼食", "夕食", "間食"] as const;
 const MEAL_TIMINGS = ["", "朝", "昼", "夜", "深夜"] as const;
+const RECOGNITION_TYPES = ["商品", "一般料理", "推定"] as const;
 
 interface MealEditFormProps {
   meal: MealRow;
@@ -25,6 +26,8 @@ export function MealEditForm({ meal, ingredientNames }: MealEditFormProps) {
   const [mealType, setMealType] = useState<string>(meal.meal_type);
   const [mealTiming, setMealTiming] = useState<string>(meal.meal_timing ?? "");
   const [menuName, setMenuName] = useState(meal.menu_name);
+  const [brand, setBrand] = useState(meal.brand ?? "");
+  const [recognitionType, setRecognitionType] = useState<string>(meal.recognition_type);
   const [category, setCategory] = useState(meal.category ?? "");
   const [servingSize, setServingSize] = useState(meal.serving_size ?? "");
   const [calorieKcal, setCalorieKcal] = useState(String(meal.calorie_kcal));
@@ -52,6 +55,8 @@ export function MealEditForm({ meal, ingredientNames }: MealEditFormProps) {
         meal_type: mealType,
         meal_timing: mealTiming || undefined,
         menu_name: menuName,
+        brand,
+        recognition_type: recognitionType,
         category,
         serving_size: servingSize,
         ingredients: ingredients
@@ -119,6 +124,31 @@ export function MealEditForm({ meal, ingredientNames }: MealEditFormProps) {
         <div>
           <Label htmlFor="menuName">料理名</Label>
           <Input id="menuName" value={menuName} onChange={(e) => setMenuName(e.target.value)} required />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label htmlFor="brand">ブランド・商品名（任意）</Label>
+            <Input
+              id="brand"
+              value={brand}
+              onChange={(e) => setBrand(e.target.value)}
+              placeholder="無印良品 など"
+            />
+          </div>
+          <div>
+            <Label htmlFor="recognitionType">認識タイプ</Label>
+            <Select
+              id="recognitionType"
+              value={recognitionType}
+              onChange={(e) => setRecognitionType(e.target.value)}
+            >
+              {RECOGNITION_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </Select>
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>

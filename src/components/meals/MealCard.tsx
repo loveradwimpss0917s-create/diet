@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Database } from "@/types/database";
 import { toJstTimeString } from "@/lib/utils/date";
+import { RecognitionTypeBadge } from "@/components/meals/RecognitionTypeBadge";
 
 type MealRow = Database["public"]["Tables"]["meals"]["Row"];
 
@@ -25,8 +26,12 @@ export function MealCard({ meal }: { meal: MealRow }) {
           <span>{toJstTimeString(meal.eaten_at)}</span>
           <span>・</span>
           <span>{meal.meal_type}</span>
+          {meal.recognition_type === "商品" && (
+            <RecognitionTypeBadge type={meal.recognition_type} />
+          )}
         </div>
         <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          {meal.brand && <span className="font-normal text-zinc-500 dark:text-zinc-400">{meal.brand} </span>}
           {meal.menu_name}
         </p>
         <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">

@@ -1,5 +1,6 @@
 import type { MealJson } from "@/lib/validation/meal";
 import { Card } from "@/components/ui/Card";
+import { RecognitionTypeBadge } from "@/components/meals/RecognitionTypeBadge";
 import { clsx } from "@/lib/utils/clsx";
 
 export function MealPreviewCard({ meal }: { meal: MealJson }) {
@@ -21,7 +22,13 @@ export function MealPreviewCard({ meal }: { meal: MealJson }) {
             </>
           )}
         </div>
-        <h2 className="mt-1 text-lg font-bold text-zinc-900 dark:text-zinc-100">{meal.menu_name}</h2>
+        <div className="mt-1 flex items-center gap-2">
+          <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">{meal.menu_name}</h2>
+          <RecognitionTypeBadge type={meal.recognition_type} />
+        </div>
+        {meal.brand && (
+          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">{meal.brand}</p>
+        )}
         {meal.serving_size && (
           <p className="text-sm text-zinc-500 dark:text-zinc-400">{meal.serving_size}</p>
         )}

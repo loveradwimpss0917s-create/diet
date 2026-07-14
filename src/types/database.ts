@@ -43,6 +43,8 @@ export interface Database {
           meal_type: "朝食" | "昼食" | "夕食" | "間食";
           meal_timing: "朝" | "昼" | "夜" | "深夜" | null;
           menu_name: string;
+          brand: string | null;
+          recognition_type: "商品" | "一般料理" | "推定";
           category: string | null;
           serving_size: string | null;
           calorie_kcal: number;

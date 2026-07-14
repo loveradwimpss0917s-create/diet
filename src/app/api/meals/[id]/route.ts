@@ -67,6 +67,8 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       meal_type: meal.meal_type,
       meal_timing: meal.meal_timing ?? null,
       menu_name: meal.menu_name,
+      brand: meal.brand || null,
+      recognition_type: meal.recognition_type,
       category: meal.category || null,
       serving_size: meal.serving_size || null,
       calorie_kcal: meal.calorie_kcal,

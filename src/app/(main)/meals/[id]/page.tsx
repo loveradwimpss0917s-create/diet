@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { DeleteMealButton } from "@/components/meals/DeleteMealButton";
+import { RecognitionTypeBadge } from "@/components/meals/RecognitionTypeBadge";
 import { toJstDateString, toJstTimeString, formatJstDateLabel } from "@/lib/utils/date";
 
 interface PageProps {
@@ -40,7 +41,13 @@ export default async function MealDetailPage({ params }: PageProps) {
           ・{meal.meal_type}
           {meal.meal_timing ? `・${meal.meal_timing}` : ""}
         </p>
-        <h1 className="mt-1 text-xl font-bold text-zinc-900 dark:text-zinc-100">{meal.menu_name}</h1>
+        <div className="mt-1 flex items-center gap-2">
+          <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">{meal.menu_name}</h1>
+          <RecognitionTypeBadge type={meal.recognition_type} />
+        </div>
+        {meal.brand && (
+          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">{meal.brand}</p>
+        )}
         {meal.category && <p className="text-sm text-zinc-500 dark:text-zinc-400">{meal.category}</p>}
       </div>
 
