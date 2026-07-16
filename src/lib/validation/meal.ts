@@ -31,36 +31,57 @@ function numberField(min: number, max: number, defaultValue: number) {
 }
 
 const DATETIME_OFFSET_RE = /(Z|[+-]\d{2}:?\d{2})$/;
+const DATETIME_COMPONENTS_RE =
+  /^(\d{4})-(\d{1,2})-(\d{1,2})[T ](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?(.*)$/;
 
 /**
- * datetime にタイムゾーンオフセットが無い場合、JST(+09:00)とみなして補完する。
+ * datetime の表記ゆれを正規化する。ChatGPT出力は以下のような揺れがあるため、
+ * ISO8601として妥当な形式（各要素2桁・T区切り・秒あり・オフセットあり）に補正する。
+ * - 月日・時分秒が1桁のまま（例: "2026-7-2T9:5:0"）
+ * - 日付と時刻の区切りが半角スペース（例: "2026-07-12 21:56:00"）
+ * - 秒が省略されている（例: "2026-07-12T21:56"）
+ * - タイムゾーンオフセットが無い → JST(+09:00)とみなす
  */
 function normalizeDatetime(value: unknown): unknown {
   if (typeof value !== "string") return value;
-  const trimmed = value.trim();
+  let trimmed = value.trim().replace(/\//g, "-");
+
+  const match = trimmed.match(DATETIME_COMPONENTS_RE);
+  if (match) {
+    const [, year, month, day, hour, minute, second, rest] = match;
+    const pad = (part: string) => part.padStart(2, "0");
+    trimmed = `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(minute)}:${pad(second ?? "0")}${rest}`;
+  }
+
   if (DATETIME_OFFSET_RE.test(trimmed)) return trimmed;
   return `${trimmed}+09:00`;
 }
 
+const DATETIME_KEY_ALIASES = ["datetime", "date_time", "eaten_at", "meal_datetime"] as const;
+
 /**
  * ChatGPTの出力形式は一定でなく、単一の datetime ではなく
- * date("YYYY-MM-DD") + time("HH:MM") に分かれて返ってくることがあるため、
- * datetime が無い場合はそこから合成する。
+ * date("YYYY-MM-DD") + time("HH:MM") に分かれて返ってくることや、
+ * キー名自体が "date_time" 等に揺れることがあるため、datetime が無い場合は補完する。
  */
 function coalesceDatetimeFields(value: unknown): unknown {
   if (typeof value !== "object" || value === null) return value;
   const obj = value as Record<string, unknown>;
 
-  if (typeof obj.datetime === "string" && obj.datetime.trim()) return obj;
+  for (const key of DATETIME_KEY_ALIASES) {
+    const candidate = obj[key];
+    if (typeof candidate === "string" && candidate.trim()) {
+      return key === "datetime" ? obj : { ...obj, datetime: candidate };
+    }
+  }
 
   const date = obj.date;
   if (typeof date !== "string" || !date.trim()) return obj;
 
   const time = obj.time;
   const timePart = typeof time === "string" && time.trim() ? time.trim() : "00:00";
-  const normalizedTime = /^\d{2}:\d{2}$/.test(timePart) ? `${timePart}:00` : timePart;
 
-  return { ...obj, datetime: `${date.trim()}T${normalizedTime}` };
+  return { ...obj, datetime: `${date.trim()}T${timePart}` };
 }
 
 export const mealJsonSchema = z.preprocess(
