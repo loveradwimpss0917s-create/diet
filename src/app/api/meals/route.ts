@@ -1,41 +1,21 @@
 import type { NextRequest } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
-import { mealJsonSchema } from "@/lib/validation/meal";
+import { mealJsonSchema, type MealJson } from "@/lib/validation/meal";
 import { apiError, apiSuccess } from "@/lib/api/response";
 import { nextDateString } from "@/lib/utils/date";
+import type { Database } from "@/types/database";
 
-export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return apiError("UNAUTHORIZED", "ログインが必要です");
-  }
-
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return apiError("INVALID_JSON", "JSONとして解析できませんでした");
-  }
-
-  const parsed = mealJsonSchema.safeParse(body);
-  if (!parsed.success) {
-    const details = parsed.error.issues.map((issue) => ({
-      path: issue.path.join("."),
-      message: issue.message,
-    }));
-    return apiError("VALIDATION_ERROR", "入力内容に誤りがあります", details);
-  }
-
-  const meal = parsed.data;
-
+async function insertMeal(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  meal: MealJson,
+  rawJson: Record<string, unknown>,
+): Promise<{ id: string } | { error: string }> {
   const { data: insertedMeal, error: insertError } = await supabase
     .from("meals")
     .insert({
-      user_id: user.id,
+      user_id: userId,
       eaten_at: meal.datetime,
       meal_type: meal.meal_type,
       meal_timing: meal.meal_timing ?? null,
@@ -54,31 +34,90 @@ export async function POST(request: NextRequest) {
       evaluation: meal.evaluation || null,
       advice: meal.advice || null,
       photo_url: null,
-      raw_json: body as Record<string, unknown>,
+      raw_json: rawJson,
     })
     .select("id")
     .single();
 
   if (insertError || !insertedMeal) {
-    return apiError("INTERNAL_ERROR", "食事の登録に失敗しました");
+    return { error: "食事の登録に失敗しました" };
   }
 
   if (meal.ingredients.length > 0) {
     const { error: ingredientsError } = await supabase.from("ingredients").insert(
       meal.ingredients.map((name, position) => ({
         meal_id: insertedMeal.id,
-        user_id: user.id,
+        user_id: userId,
         name,
         position,
       })),
     );
 
     if (ingredientsError) {
-      return apiError("INTERNAL_ERROR", "食材の登録に失敗しました");
+      return { error: "食材の登録に失敗しました" };
     }
   }
 
-  return apiSuccess({ id: insertedMeal.id }, 201);
+  return { id: insertedMeal.id };
+}
+
+export async function POST(request: NextRequest) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return apiError("UNAUTHORIZED", "ログインが必要です");
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return apiError("INVALID_JSON", "JSONとして解析できませんでした");
+  }
+
+  // 1枚の写真に複数の料理が写っている場合、ChatGPTがオブジェクトの配列で
+  // 返すことがあるため、単一オブジェクトと配列の両方を受け付ける。
+  const items = Array.isArray(body) ? body : [body];
+  if (items.length === 0) {
+    return apiError("VALIDATION_ERROR", "登録する食事データがありません");
+  }
+
+  const meals: MealJson[] = [];
+  const details: { path: string; message: string }[] = [];
+
+  items.forEach((item, index) => {
+    const parsed = mealJsonSchema.safeParse(item);
+    if (!parsed.success) {
+      const prefix = Array.isArray(body) ? `[${index}].` : "";
+      details.push(
+        ...parsed.error.issues.map((issue) => ({
+          path: `${prefix}${issue.path.join(".")}`,
+          message: issue.message,
+        })),
+      );
+    } else {
+      meals.push(parsed.data);
+    }
+  });
+
+  if (details.length > 0) {
+    return apiError("VALIDATION_ERROR", "入力内容に誤りがあります", details);
+  }
+
+  const insertedIds: string[] = [];
+  for (let i = 0; i < meals.length; i++) {
+    const rawJson = Array.isArray(body) ? (body[i] as Record<string, unknown>) : (body as Record<string, unknown>);
+    const result = await insertMeal(supabase, user.id, meals[i], rawJson);
+    if ("error" in result) {
+      return apiError("INTERNAL_ERROR", result.error);
+    }
+    insertedIds.push(result.id);
+  }
+
+  return apiSuccess({ id: insertedIds[0], ids: insertedIds, count: insertedIds.length }, 201);
 }
 
 export async function GET(request: NextRequest) {
