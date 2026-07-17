@@ -130,7 +130,7 @@ export function SettingsForm({ profile }: { profile: Profile }) {
             id="targetWeight"
             type="number"
             min={0}
-            step="0.1"
+            step="0.01"
             value={targetWeight}
             onChange={(e) => setTargetWeight(e.target.value)}
           />

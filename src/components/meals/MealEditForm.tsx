@@ -228,7 +228,7 @@ export function MealEditForm({ meal, ingredientNames }: MealEditFormProps) {
               id="saltG"
               type="number"
               min={0}
-              step="0.1"
+              step="0.01"
               value={saltG}
               onChange={(e) => setSaltG(e.target.value)}
             />
